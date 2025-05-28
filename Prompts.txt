@@ -1,0 +1,15 @@
+
+please change form input text to black do not make other changes
+add a logout button to the website
+logout button should only be in profile page
+add username to the side of user icon in layout
+in the landing page do not show login or signup buttons if logged in do not change anything else
+make profile page reflect user data
+in profile page only username email and kyc status is showing please fix; also remove
+"member since". do not change anything else
+now i want the wallet balance in wallet and dashboard to reflect the money a user has. there is 
+not an existing wallet/balance model in the database
+users need to be able to invest in projects
+i need all inputs to be black text coloured
+Users need to be able to start new projects
+now i need the platform to also allow users to sign in and sign up with google or github
