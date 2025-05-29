@@ -105,13 +105,33 @@ export const authOptions: NextAuthOptions = {
     signOut: '/auth/logout',
     error: '/auth/error',
     verifyRequest: '/auth/verify-request',
-    newUser: '/onboarding/step-1',
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // If the URL contains /auth/login, always redirect to dashboard
+      if (url.includes('/auth/login')) {
+        return `${baseUrl}/dashboard`;
+      }
+      return url;
+    },
     async signIn({ user, account, profile }) {
-      // Allow OAuth providers to link with existing accounts
+      // For OAuth providers
       if (account?.provider === 'google' || account?.provider === 'github') {
-        return true;
+        try {
+          await connectDB();
+          // Check if user already exists
+          const existingUser = await User.findOne({ email: user.email });
+          
+          if (existingUser) {
+            // If user exists, modify the callbackUrl in the account object
+            account.callbackUrl = '/dashboard';
+          } else {
+            // If new user, keep the original callbackUrl (onboarding)
+            account.callbackUrl = '/onboarding/step-1';
+          }
+        } catch (error) {
+          console.error('Error checking user existence:', error);
+        }
       }
       return true;
     },

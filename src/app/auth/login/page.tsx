@@ -32,8 +32,8 @@ export default function Login() {
         return
       }
 
-      const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-      router.push(callbackUrl)
+      // Always redirect to dashboard after successful login
+      router.push('/dashboard')
     } catch (err) {
       setError('An error occurred during sign in')
     } finally {
@@ -43,8 +43,10 @@ export default function Login() {
 
   const handleSocialLogin = async (provider: 'google' | 'github') => {
     try {
+      // Force redirect to dashboard using absolute URL
       await signIn(provider, {
-        callbackUrl: searchParams.get('callbackUrl') || '/dashboard'
+        callbackUrl: `${window.location.origin}/dashboard`,
+        redirect: true
       });
     } catch (err) {
       console.error('Social login error:', err);

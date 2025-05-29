@@ -13,3 +13,19 @@ users need to be able to invest in projects
 i need all inputs to be black text coloured
 Users need to be able to start new projects
 now i need the platform to also allow users to sign in and sign up with google or github
+when using oauth sign in it does not direct me to select account
+after signing up once in a browser i am not being redirected th enext time i want
+to sign up with a different account
+Make oauth redirect no matter what
+logout is not clearing cookies and local storage
+i am still not being redirected so i am not able to select a different account using oauth
+i do not get redirected to google to select account
+change all oauth prompts to prompt=consent
+now google is working as the prompt is consent. i want you to do the same for github
+oauth does not check for existing user in sign up. for oauth if user exists when 
+sign up i want the application to log them in and go to dashboard, skipping the 
+onboarding process
+not working logic needs to be in the page.tsx for login and sign up
+Login goes to onboarding even though it is not supposed to
+it still goes to onboarding when logging in
+you can hardcode login to always go to dashboard after user is succesfully logged in
