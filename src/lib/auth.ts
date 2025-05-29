@@ -65,10 +65,24 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     GitHubProvider({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
+      allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: "consent"
+        }
+      }
     }),
     EmailProvider({
       server: {
@@ -94,6 +108,13 @@ export const authOptions: NextAuthOptions = {
     newUser: '/onboarding/step-1',
   },
   callbacks: {
+    async signIn({ user, account, profile }) {
+      // Allow OAuth providers to link with existing accounts
+      if (account?.provider === 'google' || account?.provider === 'github') {
+        return true;
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

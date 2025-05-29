@@ -5,14 +5,18 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(request: NextRequest) {
   const token = await getToken({ req: request });
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth');
+  const isSignupPage = request.nextUrl.pathname === '/auth/signup';
 
   if (isAuthPage) {
-    if (token) {
+    if (token && !isSignupPage) {
+      // If user is signed in and trying to access auth pages (except signup),
+      // redirect to dashboard
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
   }
 
+  // Protected routes
   if (!token) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('callbackUrl', request.url);

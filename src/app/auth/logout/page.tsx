@@ -10,6 +10,22 @@ export default function Logout() {
   useEffect(() => {
     const handleLogout = async () => {
       try {
+        // Clear all localStorage items
+        localStorage.clear();
+        
+        // Clear all sessionStorage items
+        sessionStorage.clear();
+
+        // Clear all cookies
+        document.cookie.split(';').forEach(cookie => {
+          const eqPos = cookie.indexOf('=');
+          const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim();
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+          // Also try to clear cookies with different paths
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/api/auth`;
+          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/auth`;
+        });
+
         // Call the logout API
         await fetch('/api/auth/logout', {
           method: 'POST',
@@ -18,19 +34,20 @@ export default function Logout() {
           },
         });
 
-        // Sign out from NextAuth
-        await signOut({ redirect: false });
-
-        // Clear any client-side storage
-        localStorage.removeItem('user');
-        sessionStorage.clear();
+        // Sign out from NextAuth with a callback to ensure complete signout
+        await signOut({
+          redirect: false,
+          callbackUrl: '/'
+        });
 
         // Redirect to home page
         router.push('/');
+        // Force a full page reload to ensure all state is cleared
+        window.location.href = '/';
       } catch (error) {
         console.error('Logout error:', error);
         // Still redirect to home page even if there's an error
-        router.push('/');
+        window.location.href = '/';
       }
     };
 
