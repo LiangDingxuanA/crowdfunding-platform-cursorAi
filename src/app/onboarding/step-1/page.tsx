@@ -7,14 +7,8 @@ import OnboardingProgress from '@/components/OnboardingProgress'
 
 export default function OnboardingStep1() {
   const router = useRouter()
-  const { data: session, status } = useSession({
-    required: true,
-    onUnauthenticated() {
-      router.push('/auth/login?callbackUrl=/onboarding/step-1')
-    },
-  })
-
-  const [loading, setLoading] = useState(false)
+  const { data: session } = useSession()
+  const [loading, setLoading] = useState(true)
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -26,14 +20,62 @@ export default function OnboardingStep1() {
     passportNumber: '',
   })
 
-  // Show loading state while session is being fetched
-  if (status === 'loading') {
+  useEffect(() => {
+    const checkUserInfo = async () => {
+      if (!session?.user?.email) {
+        router.push('/auth/login')
+        return
+      }
+
+      try {
+        const response = await fetch('/api/auth/check-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: session.user.email }),
+        })
+
+        const data = await response.json()
+        console.log('User data:', data)
+        
+        // Check if user exists and has non-empty required fields
+        if (!data.user || 
+            !data.user.phone?.trim() || 
+            !data.user.homeAddress?.trim()) {
+          // Pre-fill form with any existing data
+          if (data.user) {
+            setFormData(prevData => ({
+              ...prevData,
+              fullName: data.user.name || '',
+              phone: data.user.phone || '',
+              homeAddress: data.user.homeAddress || '',
+              employmentDetails: data.user.employmentDetails || '',
+              officeAddress: data.user.officeAddress || '',
+              country: data.user.country || '',
+              citizenshipNumber: data.user.citizenshipNumber || '',
+              passportNumber: data.user.passportNumber || '',
+            }))
+          }
+          setLoading(false)
+          return
+        }
+
+        // If we have required info, redirect to dashboard
+        router.push('/dashboard')
+      } catch (error) {
+        console.error('Error checking user info:', error)
+        setLoading(false)
+      }
+    }
+
+    checkUserInfo()
+  }, [session, router])
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     )
   }
