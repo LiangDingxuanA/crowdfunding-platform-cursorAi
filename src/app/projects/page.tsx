@@ -226,7 +226,7 @@ const ProjectsPage = () => {
             >
               <PlusIcon className="h-5 w-5 mr-2" />
               Create Project
-            </button>
+          </button>
           </div>
         </div>
 
@@ -416,8 +416,8 @@ const ProjectsPage = () => {
                     disabled={processingInvestment[project._id] || !investmentAmount[project._id]}
                   >
                     {processingInvestment[project._id] ? 'Processing...' : 'Invest Now'}
-                  </button>
-                </div>
+                </button>
+              </div>
               )}
             </div>
           ))}

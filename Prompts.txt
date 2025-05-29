@@ -29,3 +29,8 @@ not working logic needs to be in the page.tsx for login and sign up
 Login goes to onboarding even though it is not supposed to
 it still goes to onboarding when logging in
 you can hardcode login to always go to dashboard after user is succesfully logged in
+how should i implement payment for depositing and withdrawing money
+what do i need to do to implement
+i need you to implement the whole thing
+remoe webhook i do not have a domain
+now linke the withdrawal and deposit to wallet page

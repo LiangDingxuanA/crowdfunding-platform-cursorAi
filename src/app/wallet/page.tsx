@@ -4,7 +4,15 @@ import React, { useEffect, useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { loadStripe } from '@stripe/stripe-js';
+
+if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+  throw new Error('Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variable');
+}
+
+// Initialize Stripe with the publishable key
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
 interface Transaction {
   _id: string;
@@ -26,6 +34,7 @@ interface WalletSummary {
 const WalletPage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<WalletSummary>({
     balance: 0,
@@ -38,6 +47,9 @@ const WalletPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [amount, setAmount] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [routingNumber, setRoutingNumber] = useState('');
+  const [showBankDetails, setShowBankDetails] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -74,9 +86,9 @@ const WalletPage = () => {
     if (session?.user) {
       fetchWalletData();
     }
-  }, [session]);
+  }, [session, searchParams.get('success')]);
 
-  const handleTransaction = async (type: 'deposit' | 'withdrawal') => {
+  const handleDeposit = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
       setError('Please enter a valid amount');
       return;
@@ -86,24 +98,82 @@ const WalletPage = () => {
     setError(null);
 
     try {
-      const res = await fetch('/api/wallet/transaction', {
+      const response = await fetch('/api/payments/create-checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type,
           amount: Number(amount),
-          description: `${type.charAt(0).toUpperCase() + type.slice(1)} to wallet`,
+          email: session?.user?.email,
         }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Transaction failed');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      // Refresh wallet data
+      // Redirect to Stripe Checkout
+      const stripe = await stripePromise;
+      if (!stripe) throw new Error('Stripe failed to load');
+
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      console.error('Deposit error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to process deposit');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleWithdrawal = async () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+
+    if (Number(amount) > summary.balance) {
+      setError('Insufficient balance');
+      return;
+    }
+
+    if (!accountNumber || !routingNumber) {
+      setError('Please enter bank account details');
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/payments/withdraw', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: Number(amount),
+          accountNumber,
+          routingNumber,
+          email: session?.user?.email,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process withdrawal');
+      }
+
+      // Refresh wallet data after successful withdrawal
       const [transactionsRes, summaryRes] = await Promise.all([
         fetch('/api/wallet/transactions'),
         fetch('/api/wallet/summary'),
@@ -117,8 +187,12 @@ const WalletPage = () => {
       setTransactions(transactionsData);
       setSummary(summaryData);
       setAmount('');
+      setAccountNumber('');
+      setRoutingNumber('');
+      setShowBankDetails(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transaction failed');
+      console.error('Withdrawal error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to process withdrawal');
     } finally {
       setIsProcessing(false);
     }
@@ -154,6 +228,16 @@ const WalletPage = () => {
               {error}
             </div>
           )}
+          {searchParams.get('success') === 'true' && (
+            <div className="mt-4 p-3 bg-green-100 text-green-700 rounded-lg">
+              Payment successful! Your balance has been updated.
+            </div>
+          )}
+          {searchParams.get('canceled') === 'true' && (
+            <div className="mt-4 p-3 bg-yellow-100 text-yellow-700 rounded-lg">
+              Payment was canceled.
+            </div>
+          )}
 
           <div className="mt-4 space-y-4">
             <div className="flex items-center space-x-4">
@@ -168,10 +252,32 @@ const WalletPage = () => {
                 disabled={isProcessing}
               />
             </div>
+
+            {showBankDetails && (
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  placeholder="Bank Account Number"
+                  className="w-full p-2 border rounded-lg text-black"
+                  disabled={isProcessing}
+                />
+                <input
+                  type="text"
+                  value={routingNumber}
+                  onChange={(e) => setRoutingNumber(e.target.value)}
+                  placeholder="Routing Number"
+                  className="w-full p-2 border rounded-lg text-black"
+                  disabled={isProcessing}
+                />
+              </div>
+            )}
+
             <div className="flex space-x-4">
               <button
                 className="flex-1 flex items-center justify-center bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
-                onClick={() => handleTransaction('deposit')}
+                onClick={handleDeposit}
                 disabled={isProcessing}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
@@ -179,13 +285,32 @@ const WalletPage = () => {
               </button>
               <button
                 className="flex-1 flex items-center justify-center bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
-                onClick={() => handleTransaction('withdrawal')}
+                onClick={() => {
+                  if (showBankDetails) {
+                    handleWithdrawal();
+                  } else {
+                    setShowBankDetails(true);
+                  }
+                }}
                 disabled={isProcessing}
               >
                 <MinusIcon className="h-5 w-5 mr-2" />
-                Withdraw
+                {showBankDetails ? 'Confirm Withdrawal' : 'Withdraw'}
               </button>
             </div>
+            {showBankDetails && (
+              <button
+                className="w-full text-gray-600 hover:text-gray-800"
+                onClick={() => {
+                  setShowBankDetails(false);
+                  setAccountNumber('');
+                  setRoutingNumber('');
+                }}
+                disabled={isProcessing}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
 
@@ -198,26 +323,33 @@ const WalletPage = () => {
                 key={transaction._id}
                 className="flex items-center justify-between p-4 border-b last:border-b-0"
               >
-                <div className="flex items-center">
-                  {transaction.type === 'deposit' || transaction.type === 'dividend' ? (
-                    <ArrowDownIcon className="h-6 w-6 text-green-500 mr-3" />
+                <div className="flex items-center space-x-4">
+                  {transaction.type === 'deposit' ? (
+                    <ArrowDownIcon className="h-6 w-6 text-green-500" />
                   ) : (
-                    <ArrowUpIcon className="h-6 w-6 text-red-500 mr-3" />
+                    <ArrowUpIcon className="h-6 w-6 text-red-500" />
                   )}
                   <div>
-                    <p className="font-medium capitalize text-black">{transaction.type}</p>
-                    <p className="text-sm text-black">{new Date(transaction.date).toLocaleDateString()}</p>
+                    <p className="font-medium text-black">
+                      {transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(transaction.date).toLocaleString()}
+                    </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p
-                    className={`font-semibold ${
-                      transaction.amount > 0 ? 'text-green-500' : 'text-red-500'
-                    }`}
-                  >
-                    {transaction.amount > 0 ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}
+                  <p className={`font-medium ${
+                    transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {transaction.type === 'deposit' ? '+' : '-'}${Math.abs(transaction.amount).toLocaleString()}
                   </p>
-                  <p className="text-sm text-black capitalize">{transaction.status}</p>
+                  <p className={`text-sm ${
+                    transaction.status === 'completed' ? 'text-green-600' :
+                    transaction.status === 'pending' ? 'text-yellow-600' : 'text-red-600'
+                  }`}>
+                    {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                  </p>
                 </div>
               </div>
             ))}

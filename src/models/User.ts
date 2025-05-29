@@ -1,5 +1,23 @@
 import mongoose from 'mongoose';
 
+const transactionSchema = new mongoose.Schema({
+  amount: {
+    type: Number,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'failed'],
+    default: 'pending',
+  },
+  paymentId: String,
+  transferId: String,
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -67,6 +85,12 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  balance: {
+    type: Number,
+    default: 0,
+  },
+  deposits: [transactionSchema],
+  withdrawals: [transactionSchema],
 }, {
   timestamps: true,
 });
@@ -77,4 +101,6 @@ userSchema.pre('save', function(next) {
   next();
 });
 
-export default mongoose.models.User || mongoose.model('User', userSchema); 
+const User = mongoose.models.User || mongoose.model('User', userSchema);
+
+export default User; 
