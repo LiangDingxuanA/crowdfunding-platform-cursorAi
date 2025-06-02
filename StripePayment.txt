@@ -5,7 +5,8 @@ Use Stripe's test cards for payments:
 Success: 4242 4242 4242 4242
 Decline: 4000 0000 0000 0002
 For testing withdrawals, use these US bank details:
-Routing number: 110000000
 Account number: 000123456789
+Routing number: 110000000
+
 The system will work locally without requiring a domain or webhook setup. 
 Would you like me to explain any part of the implementation in more detail?

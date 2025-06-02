@@ -18,18 +18,11 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { amount, accountNumber, routingNumber } = body;
+    const { amount } = body;
 
     if (!amount || amount < 1) {
       return NextResponse.json(
         { error: 'Invalid amount' },
-        { status: 400 }
-      );
-    }
-
-    if (!accountNumber || !routingNumber) {
-      return NextResponse.json(
-        { error: 'Bank details are required' },
         { status: 400 }
       );
     }
@@ -62,63 +55,46 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Create an external account
-      const bankAccount = await stripe.accounts.createExternalAccount(
-        process.env.STRIPE_PLATFORM_ACCOUNT_ID!,
-        {
-          external_account: {
-            object: 'bank_account',
-            country: 'US',
-            currency: 'usd',
-            account_number: accountNumber,
-            routing_number: routingNumber,
-          },
-        }
-      );
-
-      if (!bankAccount || typeof bankAccount.id !== 'string') {
-        throw new Error('Failed to create external account');
-      }
-
-      // Create a payout
-      const payout = await stripe.payouts.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'usd',
-        method: 'standard',
-        destination: bankAccount.id,
-        metadata: {
-          userEmail: session.user.email,
-          type: 'withdrawal',
+      // Create a Financial Connections Session
+      const session = await stripe.financialConnections.sessions.create({
+        account_holder: {
+          type: 'customer',
+          customer: user.stripeCustomerId || (await stripe.customers.create({
+            email: user.email,
+            name: user.name,
+          })).id,
         },
+        permissions: ['payment_method'],
+        filters: { countries: ['US'] },
       });
 
-      // Create transaction record
-      await Transaction.create({
+      // Update user's Stripe customer ID if it was just created
+      const accountHolder = session.account_holder;
+      if (!user.stripeCustomerId && accountHolder && 'customer' in accountHolder) {
+        user.stripeCustomerId = accountHolder.customer;
+        await user.save();
+      }
+
+      // Create transaction record in pending state
+      const transaction = await Transaction.create({
         userId: user.id,
         type: 'withdrawal',
         amount: -amount, // Negative amount for withdrawals
         status: 'pending',
-        description: 'Bank transfer withdrawal (processing)',
+        description: 'Bank transfer withdrawal (awaiting bank connection)',
         date: new Date(),
       });
 
-      // Update balances
-      user.balance -= amount;
-      wallet.balance -= amount;
-      
-      await Promise.all([
-        user.save(),
-        wallet.save(),
-      ]);
-
       return NextResponse.json({ 
         success: true,
-        payoutId: payout.id,
+        client_secret: session.client_secret,
+        transactionId: transaction.id,
       });
+
     } catch (stripeError: any) {
       console.error('Stripe error:', stripeError);
       return NextResponse.json(
-        { error: stripeError.message || 'Failed to process withdrawal' },
+        { error: stripeError.message || 'Failed to initiate withdrawal' },
         { status: 400 }
       );
     }

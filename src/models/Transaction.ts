@@ -35,6 +35,10 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    stripePayoutId: {
+      type: String,
+      sparse: true,
+    },
   },
   {
     timestamps: true,

@@ -89,6 +89,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  stripeCustomerId: {
+    type: String,
+    sparse: true,
+  },
   deposits: [transactionSchema],
   withdrawals: [transactionSchema],
 }, {
