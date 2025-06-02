@@ -61,7 +61,14 @@ export async function POST(request: Request) {
         country: user.country || 'US',
         email: user.email,
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
+          us_bank_account_ach_payments: { requested: true },
+        },
+        business_type: 'individual',
+        business_profile: {
+          mcc: '5734', // Computer Software Stores
+          url: process.env.NEXT_PUBLIC_APP_URL,
         },
       });
       user.stripeConnectAccountId = account.id;
