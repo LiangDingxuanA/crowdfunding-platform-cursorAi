@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const wallet = await Wallet.findOne({ userId: user.id });
+    const wallet = await Wallet.findOne({ userId: user._id });
     if (!wallet) {
       return NextResponse.json(
         { error: 'Wallet not found' },
@@ -46,58 +46,100 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check both balances
-    if (user.balance < amount || wallet.balance < amount) {
+    // Check balance
+    if (wallet.balance < amount) {
       return NextResponse.json(
         { error: 'Insufficient balance' },
         { status: 400 }
       );
     }
 
-    try {
-      // Create a Financial Connections Session
-      const session = await stripe.financialConnections.sessions.create({
-        account_holder: {
-          type: 'customer',
-          customer: user.stripeCustomerId || (await stripe.customers.create({
-            email: user.email,
-            name: user.name,
-          })).id,
+    // Create or get Stripe Connect account if not exists
+    if (!user.stripeConnectAccountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: user.country || 'US',
+        email: user.email,
+        capabilities: {
+          transfers: { requested: true },
         },
-        permissions: ['payment_method'],
-        filters: { countries: ['US'] },
+      });
+      user.stripeConnectAccountId = account.id;
+      await user.save();
+
+      // Return URL for account onboarding
+      const accountLink = await stripe.accountLinks.create({
+        account: account.id,
+        refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=true`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?success=true`,
+        type: 'account_onboarding',
       });
 
-      // Update user's Stripe customer ID if it was just created
-      const accountHolder = session.account_holder;
-      if (!user.stripeCustomerId && accountHolder && 'customer' in accountHolder) {
-        user.stripeCustomerId = accountHolder.customer;
-        await user.save();
-      }
-
-      // Create transaction record in pending state
-      const transaction = await Transaction.create({
-        userId: user.id,
-        type: 'withdrawal',
-        amount: -amount, // Negative amount for withdrawals
-        status: 'pending',
-        description: 'Bank transfer withdrawal (awaiting bank connection)',
-        date: new Date(),
+      return NextResponse.json({
+        status: 'onboarding_required',
+        onboardingUrl: accountLink.url,
       });
-
-      return NextResponse.json({ 
-        success: true,
-        client_secret: session.client_secret,
-        transactionId: transaction.id,
-      });
-
-    } catch (stripeError: any) {
-      console.error('Stripe error:', stripeError);
-      return NextResponse.json(
-        { error: stripeError.message || 'Failed to initiate withdrawal' },
-        { status: 400 }
-      );
     }
+
+    // Check if account is ready for payouts
+    const account = await stripe.accounts.retrieve(user.stripeConnectAccountId);
+    if (!account.payouts_enabled) {
+      // Create new account link for completing verification
+      const accountLink = await stripe.accountLinks.create({
+        account: user.stripeConnectAccountId,
+        refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=true`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?success=true`,
+        type: 'account_onboarding',
+      });
+
+      return NextResponse.json({
+        status: 'verification_required',
+        verificationUrl: accountLink.url,
+      });
+    }
+
+    // Calculate fees
+    const stripeFeePercent = 0.0025; // 0.25% Stripe payout fee
+    const stripeFixedFee = 0; // No fixed fee for payouts to US bank accounts
+    const stripeFee = Math.round((amount * stripeFeePercent + stripeFixedFee) * 100);
+    const payoutAmount = Math.round(amount * 100) - stripeFee;
+
+    // Create payout
+    const payout = await stripe.transfers.create({
+      amount: payoutAmount,
+      currency: 'usd',
+      destination: user.stripeConnectAccountId,
+      description: `Wallet withdrawal for ${user.email}`,
+      metadata: {
+        userId: user._id.toString(),
+        type: 'wallet_withdrawal',
+      },
+    });
+
+    // Create transaction record
+    const transaction = await Transaction.create({
+      userId: user._id,
+      type: 'withdrawal',
+      amount: -amount, // Negative amount for withdrawals
+      status: 'pending',
+      description: 'Wallet withdrawal via bank transfer',
+      stripePayoutId: payout.id,
+    });
+
+    // Update wallet balance
+    wallet.balance -= amount;
+    await wallet.save();
+
+    // Update user balance
+    user.balance -= amount;
+    await user.save();
+
+    return NextResponse.json({
+      success: true,
+      transactionId: transaction._id,
+      payoutId: payout.id,
+      estimatedArrival: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Estimate 2 business days
+    });
   } catch (error) {
     console.error('Withdrawal error:', error);
     return NextResponse.json(

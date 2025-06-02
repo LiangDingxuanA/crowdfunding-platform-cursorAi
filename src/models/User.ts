@@ -40,7 +40,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin'],
+    enum: ['user', 'admin', 'creator'],
     default: 'user',
   },
   phone: {
@@ -92,6 +92,23 @@ const userSchema = new mongoose.Schema({
   stripeCustomerId: {
     type: String,
     sparse: true,
+  },
+  stripeConnectAccountId: {
+    type: String,
+    sparse: true,
+  },
+  stripeConnectAccountStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'restricted', 'rejected'],
+    default: 'pending',
+  },
+  stripeConnectOnboardingComplete: {
+    type: Boolean,
+    default: false,
+  },
+  stripeConnectPayoutsEnabled: {
+    type: Boolean,
+    default: false,
   },
   deposits: [transactionSchema],
   withdrawals: [transactionSchema],
