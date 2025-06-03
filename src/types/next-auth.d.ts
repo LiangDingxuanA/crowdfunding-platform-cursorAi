@@ -1,44 +1,35 @@
-import 'next-auth';
-import { DefaultSession } from 'next-auth';
-import { AdapterUser } from '@auth/mongodb-adapter';
-import { JWT } from 'next-auth/jwt';
+import type { DefaultSession, AdapterUser } from 'next-auth';
+import type { JWT } from 'next-auth/jwt';
 
 declare module 'next-auth' {
-  interface Session {
+  interface Session extends DefaultSession {
     user: {
       id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      role?: string;
+      name: string;
+      email: string;
+      image?: string;
       phone?: string;
       address?: string;
-      kycStatus?: string;
+      kycStatus?: 'pending' | 'approved' | 'rejected';
       memberSince?: Date;
-      createdAt?: Date;
-    }
+    } & DefaultSession['user'];
   }
 
-  interface User {
-    id: string;
-    role?: string;
+  interface User extends AdapterUser {
     phone?: string;
     address?: string;
-    kycStatus?: string;
+    kycStatus?: 'pending' | 'approved' | 'rejected';
     memberSince?: Date;
-    createdAt?: Date;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
-    role?: string;
     phone?: string;
     address?: string;
-    kycStatus?: string;
+    kycStatus?: 'pending' | 'approved' | 'rejected';
     memberSince?: Date;
-    createdAt?: Date;
   }
 }
 

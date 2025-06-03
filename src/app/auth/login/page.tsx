@@ -4,8 +4,9 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function Login() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -14,6 +15,7 @@ export default function Login() {
     email: '',
     password: '',
   })
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,13 +31,11 @@ export default function Login() {
 
       if (result?.error) {
         setError(result.error)
-        return
+      } else {
+        router.push(callbackUrl)
       }
-
-      // Always redirect to dashboard after successful login
-      router.push('/dashboard')
     } catch (err) {
-      setError('An error occurred during sign in')
+      setError('An error occurred during login')
     } finally {
       setLoading(false)
     }
@@ -142,7 +142,7 @@ export default function Login() {
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
                     d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"
-                    fill="currentColor"
+                  fill="currentColor"
                   />
                 </svg>
                 <span className="ml-2">Google</span>
@@ -166,5 +166,13 @@ export default function Login() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 } 

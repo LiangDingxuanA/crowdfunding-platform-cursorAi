@@ -1,15 +1,17 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import DepositForm from '@/components/DepositForm'
 import WithdrawForm from '@/components/WithdrawForm'
 
-export default function PaymentsPage() {
+function PaymentsContent() {
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const [balance, setBalance] = useState<number>(0)
-  const searchParams = useSearchParams()
+  const [status, setStatus] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -30,6 +32,17 @@ export default function PaymentsPage() {
     fetchBalance()
   }, [session, searchParams.get('success')])
 
+  useEffect(() => {
+    const paymentStatus = searchParams?.get('status')
+    if (paymentStatus === 'success') {
+      setStatus('success')
+      setMessage('Payment successful! Your transaction has been completed.')
+    } else if (paymentStatus === 'cancel') {
+      setStatus('error')
+      setMessage('Payment cancelled. Please try again.')
+    }
+  }, [searchParams])
+
   if (!session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -41,19 +54,13 @@ export default function PaymentsPage() {
   return (
     <div className="min-h-screen bg-gray-100 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {searchParams.get('success') === 'true' && (
-          <div className="mb-4 p-3 bg-green-50 text-green-500 rounded-md">
-            Payment successful! Your balance has been updated.
-          </div>
-        )}
-        {searchParams.get('canceled') === 'true' && (
-          <div className="mb-4 p-3 bg-yellow-50 text-yellow-500 rounded-md">
-            Payment was canceled.
-          </div>
-        )}
-        {searchParams.get('error') === 'true' && (
-          <div className="mb-4 p-3 bg-red-50 text-red-500 rounded-md">
-            There was an error processing your payment. Please try again.
+        {status && (
+          <div
+            className={`p-4 mb-4 rounded-md ${
+              status === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+            }`}
+          >
+            {message}
           </div>
         )}
         <div className="mb-8">
@@ -72,5 +79,13 @@ export default function PaymentsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function PaymentsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentsContent />
+    </Suspense>
   )
 } 

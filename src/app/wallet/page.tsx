@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
 import { useSession } from 'next-auth/react';
@@ -31,7 +31,7 @@ interface WalletSummary {
   lastUpdated: string;
 }
 
-const WalletPage = () => {
+function WalletContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -280,9 +280,9 @@ const WalletPage = () => {
                 onClick={handleDeposit}
                 disabled={isProcessing}
               >
-                <PlusIcon className="h-5 w-5 mr-2" />
-                Deposit
-              </button>
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Deposit
+            </button>
               <button
                 className="flex-1 flex items-center justify-center bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
                 onClick={() => {
@@ -294,7 +294,7 @@ const WalletPage = () => {
                 }}
                 disabled={isProcessing}
               >
-                <MinusIcon className="h-5 w-5 mr-2" />
+              <MinusIcon className="h-5 w-5 mr-2" />
                 {showBankDetails ? 'Confirm Withdrawal' : 'Withdraw'}
               </button>
             </div>
@@ -309,7 +309,7 @@ const WalletPage = () => {
                 disabled={isProcessing}
               >
                 Cancel
-              </button>
+            </button>
             )}
           </div>
         </div>
@@ -377,6 +377,12 @@ const WalletPage = () => {
       </div>
     </AdminLayout>
   );
-};
+}
 
-export default WalletPage; 
+export default function WalletPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <WalletContent />
+    </Suspense>
+  );
+} 

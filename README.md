@@ -1,30 +1,99 @@
 # Crowdfunding Platform
 
-A modern crowdfunding platform built with Next.js, MongoDB, and NextAuth.js.
+A modern crowdfunding platform built with Next.js, MongoDB, and Stripe.
 
 ## Features
 
-- Full-screen video landing page
-- User authentication with email, Google, and GitHub
-- Multi-step onboarding process
-- Identity verification
-- Address verification
-- Secure document upload
-- Responsive design
+- User authentication with NextAuth.js
+- Secure payments with Stripe
+- Project creation and management
+- Wallet system with deposits and withdrawals
+- Stripe Connect integration for project creators
+- Real-time transaction tracking
 
-## Prerequisites
+## Tech Stack
 
-- Node.js 18 or later
-- MongoDB running locally or a MongoDB Atlas account
-- Google OAuth credentials
-- GitHub OAuth credentials
-- SMTP server access for email notifications
+- Next.js 13+ with App Router
+- TypeScript
+- MongoDB with Mongoose
+- Stripe for payments
+- NextAuth.js for authentication
+- TailwindCSS for styling
 
-## Setup
+## Deployment Guide
+
+### Prerequisites
+
+1. Node.js 18+ installed
+2. MongoDB Atlas account
+3. Stripe account
+4. Vercel account
+
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```env
+# App
+NEXT_PUBLIC_APP_URL=https://your-domain.com
+
+# Database
+MONGODB_URI=mongodb+srv://your-username:your-password@your-cluster.mongodb.net/your-database
+
+# Authentication
+NEXTAUTH_URL=https://your-domain.com
+NEXTAUTH_SECRET=your-nextauth-secret
+
+# Stripe
+STRIPE_SECRET_KEY=sk_live_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# OAuth Providers (optional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GITHUB_ID=your-github-client-id
+GITHUB_SECRET=your-github-client-secret
+```
+
+### Deployment Steps
+
+1. **Prepare MongoDB:**
+   - Create a MongoDB Atlas cluster
+   - Whitelist your deployment IP or allow access from anywhere
+   - Create a database user
+   - Get your MongoDB connection string
+
+2. **Configure Stripe:**
+   - Create a Stripe account
+   - Enable Connect if not already enabled
+   - Get your API keys
+   - Set up webhook endpoints
+   - Configure Connect settings
+
+3. **Deploy to Vercel:**
+   ```bash
+   # Install Vercel CLI
+   npm i -g vercel
+
+   # Login to Vercel
+   vercel login
+
+   # Deploy
+   vercel
+   ```
+
+4. **Post-Deployment Setup:**
+   - Add environment variables in Vercel dashboard
+   - Configure Stripe webhook endpoint
+   - Test the payment flow
+   - Verify Connect onboarding
+
+### Local Development
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+   git clone https://github.com/yourusername/crowdfunding-platform.git
 cd crowdfunding-platform
 ```
 
@@ -33,93 +102,48 @@ cd crowdfunding-platform
 npm install
 ```
 
-3. Create a `.env.local` file in the root directory with the following variables:
-```env
-# MongoDB
-MONGODB_URI=mongodb://localhost:27017/crowdfunding
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-# NextAuth.js
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-secret-key-here # Generate a secure random string
-
-# Google OAuth
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-
-# GitHub OAuth
-GITHUB_ID=your-github-client-id
-GITHUB_SECRET=your-github-client-secret
-
-# Email (SMTP)
-EMAIL_SERVER_HOST=smtp.gmail.com
-EMAIL_SERVER_PORT=587
-EMAIL_SERVER_USER=your-email@gmail.com
-EMAIL_SERVER_PASSWORD=your-app-specific-password
-EMAIL_FROM=noreply@crowdfunding.com
-```
-
-4. Set up OAuth credentials:
-   - Create a Google OAuth application at https://console.cloud.google.com
-   - Create a GitHub OAuth application at https://github.com/settings/developers
-   - Add the credentials to your `.env.local` file
-
-5. Set up email:
-   - Configure your SMTP server details
-   - For Gmail, create an App Password if using 2FA
-   - Update the email configuration in `.env.local`
-
-6. Start the development server:
+4. Run the development server:
 ```bash
 npm run dev
 ```
 
-7. Open http://localhost:3000 in your browser
+### Production Build
 
-## Project Structure
+To create a production build:
 
-```
-src/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── auth/              # Authentication pages
-│   ├── onboarding/        # Onboarding flow
-│   └── page.tsx           # Landing page
-├── components/            # React components
-├── lib/                   # Utility functions
-└── providers/            # React context providers
+```bash
+npm run build
+npm start
 ```
 
-## Development
+## Stripe Integration
 
-- The platform uses the Next.js App Router
-- Authentication is handled by NextAuth.js
-- MongoDB is used for data storage
-- Tailwind CSS for styling
-- TypeScript for type safety
+### Webhooks
 
-## Production Deployment
+Configure the following webhook endpoints in your Stripe dashboard:
 
-1. Set up a MongoDB database (e.g., MongoDB Atlas)
-2. Configure environment variables in your hosting platform
-3. Deploy to your preferred hosting service (e.g., Vercel)
+1. `/api/payments/webhook` - For payment processing
+2. `/api/stripe/connect/webhook` - For Connect account updates
 
-## Security Considerations
+### Testing
 
-- All environment variables must be kept secure
-- Implement proper file upload security measures
-- Add rate limiting to API routes
-- Set up proper CORS policies
-- Implement proper session management
-- Use secure HTTPS connections
+Use these test card numbers:
+- Success: 4242 4242 4242 4242
+- Decline: 4000 0000 0000 0002
 
-## Contributing
+For Connect testing, use:
+- Account number: 000123456789
+- Routing number: 110000000
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+## Support
+
+For support, email support@yourdomain.com or create an issue in the repository.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT
