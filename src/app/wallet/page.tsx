@@ -136,18 +136,25 @@ function WalletContent() {
   };
 
   const handleWithdrawal = async () => {
+    console.log('Starting withdrawal process...');
+    console.log('Amount:', amount);
+    console.log('Current balance:', summary.balance);
+
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      console.log('Invalid amount error');
       setError('Please enter a valid amount');
       return;
     }
 
     if (Number(amount) > summary.balance) {
+      console.log('Insufficient balance error');
       setError('Insufficient balance');
       return;
     }
 
     setIsProcessing(true);
     setError(null);
+    console.log('Making withdrawal API request...');
 
     try {
       const response = await fetch('/api/payments/withdraw', {
@@ -161,28 +168,43 @@ function WalletContent() {
         }),
       });
 
+      console.log('Withdrawal API response status:', response.status);
       const data = await response.json();
+      console.log('Withdrawal API response data:', data);
 
       if (!response.ok) {
+        console.error('Withdrawal API error:', data.error);
         throw new Error(data.error || 'Failed to process withdrawal');
       }
 
       // Handle special cases
       if (data.status === 'onboarding_required' || data.status === 'verification_required') {
+        console.log('Redirecting to Stripe:', data.onboardingUrl || data.verificationUrl);
         window.location.href = data.onboardingUrl || data.verificationUrl;
         return;
       }
 
+      console.log('Refreshing wallet data...');
       // Refresh wallet data after successful withdrawal
       const [transactionsRes, summaryRes] = await Promise.all([
         fetch('/api/wallet/transactions'),
         fetch('/api/wallet/summary'),
       ]);
 
+      console.log('Wallet data response status:', {
+        transactions: transactionsRes.status,
+        summary: summaryRes.status
+      });
+
       const [transactionsData, summaryData] = await Promise.all([
         transactionsRes.json(),
         summaryRes.json(),
       ]);
+
+      console.log('Updated wallet data:', {
+        transactions: transactionsData,
+        summary: summaryData
+      });
 
       setTransactions(transactionsData);
       setSummary(summaryData);
@@ -192,12 +214,14 @@ function WalletContent() {
       // Show success message
       setError(null);
       setWithdrawalStatus('success');
+      console.log('Withdrawal completed successfully');
     } catch (err) {
       console.error('Withdrawal error:', err);
       setError(err instanceof Error ? err.message : 'Failed to process withdrawal');
       setWithdrawalStatus('error');
     } finally {
       setIsProcessing(false);
+      console.log('Withdrawal process finished');
     }
   };
 
@@ -289,9 +313,13 @@ function WalletContent() {
               <button
                 className="flex-1 flex items-center justify-center bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
                 onClick={async () => {
+                  console.log('Withdraw button clicked');
+                  console.log('showBankDetails:', showBankDetails);
                   if (showBankDetails) {
+                    console.log('Initiating withdrawal...');
                     await handleWithdrawal();
                   } else {
+                    console.log('Showing bank details form');
                     setShowBankDetails(true);
                   }
                 }}
