@@ -35,6 +35,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get the base URL from the environment variable
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+
     // Create Stripe checkout session
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -52,8 +55,8 @@ export async function POST(request: Request) {
         },
       ],
       mode: 'payment',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payments?canceled=true`,
+      success_url: `${baseUrl}/api/payments/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/wallet?canceled=true`,
       metadata: {
         userEmail: session.user.email,
       },

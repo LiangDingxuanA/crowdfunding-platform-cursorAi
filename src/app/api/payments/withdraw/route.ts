@@ -54,6 +54,9 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get the base URL from the request
+    const baseUrl = new URL(request.url).origin;
+
     // Create or get Stripe Connect account if not exists
     if (!user.stripeConnectAccountId) {
       const account = await stripe.accounts.create({
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
         business_type: 'individual',
         business_profile: {
           mcc: '5734', // Computer Software Stores
-          url: process.env.NEXT_PUBLIC_APP_URL,
+          product_description: 'Crowdfunding platform withdrawals'
         },
       });
       user.stripeConnectAccountId = account.id;
@@ -77,8 +80,8 @@ export async function POST(request: Request) {
       // Return URL for account onboarding
       const accountLink = await stripe.accountLinks.create({
         account: account.id,
-        refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=true`,
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?success=true`,
+        refresh_url: `${baseUrl}/wallet?error=true`,
+        return_url: `${baseUrl}/wallet?success=true`,
         type: 'account_onboarding',
       });
 
@@ -94,8 +97,8 @@ export async function POST(request: Request) {
       // Create new account link for completing verification
       const accountLink = await stripe.accountLinks.create({
         account: user.stripeConnectAccountId,
-        refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?error=true`,
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/wallet?success=true`,
+        refresh_url: `${baseUrl}/wallet?error=true`,
+        return_url: `${baseUrl}/wallet?success=true`,
         type: 'account_onboarding',
       });
 

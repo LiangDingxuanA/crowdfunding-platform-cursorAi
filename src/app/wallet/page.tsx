@@ -50,6 +50,7 @@ function WalletContent() {
   const [accountNumber, setAccountNumber] = useState('');
   const [routingNumber, setRoutingNumber] = useState('');
   const [showBankDetails, setShowBankDetails] = useState(false);
+  const [withdrawalStatus, setWithdrawalStatus] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -84,7 +85,7 @@ function WalletContent() {
     };
 
     if (session?.user) {
-      fetchWalletData();
+    fetchWalletData();
     }
   }, [session, searchParams.get('success')]);
 
@@ -145,11 +146,6 @@ function WalletContent() {
       return;
     }
 
-    if (!accountNumber || !routingNumber) {
-      setError('Please enter bank account details');
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
 
@@ -161,8 +157,6 @@ function WalletContent() {
         },
         body: JSON.stringify({
           amount: Number(amount),
-          accountNumber,
-          routingNumber,
           email: session?.user?.email,
         }),
       });
@@ -171,6 +165,12 @@ function WalletContent() {
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to process withdrawal');
+      }
+
+      // Handle special cases
+      if (data.status === 'onboarding_required' || data.status === 'verification_required') {
+        window.location.href = data.onboardingUrl || data.verificationUrl;
+        return;
       }
 
       // Refresh wallet data after successful withdrawal
@@ -187,12 +187,15 @@ function WalletContent() {
       setTransactions(transactionsData);
       setSummary(summaryData);
       setAmount('');
-      setAccountNumber('');
-      setRoutingNumber('');
       setShowBankDetails(false);
+      
+      // Show success message
+      setError(null);
+      setWithdrawalStatus('success');
     } catch (err) {
       console.error('Withdrawal error:', err);
       setError(err instanceof Error ? err.message : 'Failed to process withdrawal');
+      setWithdrawalStatus('error');
     } finally {
       setIsProcessing(false);
     }
@@ -285,16 +288,16 @@ function WalletContent() {
             </button>
               <button
                 className="flex-1 flex items-center justify-center bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 disabled:opacity-50"
-                onClick={() => {
+                onClick={async () => {
                   if (showBankDetails) {
-                    handleWithdrawal();
+                    await handleWithdrawal();
                   } else {
                     setShowBankDetails(true);
                   }
                 }}
                 disabled={isProcessing}
               >
-              <MinusIcon className="h-5 w-5 mr-2" />
+                <MinusIcon className="h-5 w-5 mr-2" />
                 {showBankDetails ? 'Confirm Withdrawal' : 'Withdraw'}
               </button>
             </div>
