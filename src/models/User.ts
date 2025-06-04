@@ -21,26 +21,20 @@ const transactionSchema = new mongoose.Schema({
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please provide a name'],
+    required: true,
   },
   email: {
     type: String,
-    required: [true, 'Please provide an email'],
+    required: true,
     unique: true,
-    match: [
-      /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-      'Please provide a valid email',
-    ],
   },
   password: {
     type: String,
-    required: [true, 'Please provide a password'],
-    minlength: 6,
-    select: false,
+    required: true,
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'creator'],
+    enum: ['user', 'admin'],
     default: 'user',
   },
   phone: {
@@ -73,6 +67,12 @@ const userSchema = new mongoose.Schema({
     enum: ['pending', 'verified', 'rejected'],
     default: 'pending',
   },
+  idDocument: {
+    type: String,
+  },
+  proofOfAddress: {
+    type: String,
+  },
   memberSince: {
     type: Date,
     default: Date.now,
@@ -95,7 +95,6 @@ const userSchema = new mongoose.Schema({
   },
   stripeConnectAccountId: {
     type: String,
-    sparse: true,
   },
   stripeConnectAccountStatus: {
     type: String,

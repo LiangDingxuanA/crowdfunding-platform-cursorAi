@@ -325,7 +325,7 @@ function WalletContent() {
                 }}
                 disabled={isProcessing}
               >
-                <MinusIcon className="h-5 w-5 mr-2" />
+              <MinusIcon className="h-5 w-5 mr-2" />
                 {showBankDetails ? 'Confirm Withdrawal' : 'Withdraw'}
               </button>
             </div>
