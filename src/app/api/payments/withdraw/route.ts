@@ -61,18 +61,25 @@ export async function POST(request: Request) {
     if (!user.stripeConnectAccountId) {
       const account = await stripe.accounts.create({
         type: 'express',
-        country: user.country || 'US',
+        country: 'SG', // Set to Singapore
         email: user.email,
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
-          us_bank_account_ach_payments: { requested: true },
+          payouts: { requested: true },
         },
         business_type: 'individual',
         business_profile: {
           mcc: '5734', // Computer Software Stores
           product_description: 'Crowdfunding platform withdrawals'
         },
+        settings: {
+          payouts: {
+            schedule: {
+              interval: 'manual'
+            }
+          }
+        }
       });
       user.stripeConnectAccountId = account.id;
       await user.save();
@@ -110,16 +117,18 @@ export async function POST(request: Request) {
 
     // Calculate fees
     const stripeFeePercent = 0.0025; // 0.25% Stripe payout fee
-    const stripeFixedFee = 0; // No fixed fee for payouts to US bank accounts
+    const stripeFixedFee = 0; // No fixed fee for payouts to SG bank accounts
     const stripeFee = Math.round((amount * stripeFeePercent + stripeFixedFee) * 100);
     const payoutAmount = Math.round(amount * 100) - stripeFee;
 
-    // Create payout
-    const payout = await stripe.transfers.create({
+    // Create payout using payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
       amount: payoutAmount,
-      currency: 'usd',
-      destination: user.stripeConnectAccountId,
-      description: `Wallet withdrawal for ${user.email}`,
+      currency: 'sgd', // Use SGD currency
+      payment_method_types: ['card'], // Use card payments for SG
+      transfer_data: {
+        destination: user.stripeConnectAccountId,
+      },
       metadata: {
         userId: user._id.toString(),
         type: 'wallet_withdrawal',
@@ -133,7 +142,7 @@ export async function POST(request: Request) {
       amount: -amount, // Negative amount for withdrawals
       status: 'pending',
       description: 'Wallet withdrawal via bank transfer',
-      stripePayoutId: payout.id,
+      stripePaymentIntentId: paymentIntent.id,
     });
 
     // Update wallet balance
@@ -147,7 +156,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       transactionId: transaction._id,
-      payoutId: payout.id,
+      paymentIntentId: paymentIntent.id,
+      clientSecret: paymentIntent.client_secret,
       estimatedArrival: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Estimate 2 business days
     });
   } catch (error) {

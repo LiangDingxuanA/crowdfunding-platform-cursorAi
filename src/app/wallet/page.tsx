@@ -247,7 +247,7 @@ function WalletContent() {
         {/* Balance Card */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-lg font-semibold mb-4 text-black">Available Balance</h2>
-          <p className="text-4xl font-bold text-blue-600">${summary.balance.toLocaleString()}</p>
+          <p className="text-4xl font-bold text-blue-600">S${summary.balance.toLocaleString()}</p>
           <p className="text-sm text-gray-500 mt-1">Last updated: {new Date(summary.lastUpdated).toLocaleString()}</p>
           
           {error && (
@@ -373,7 +373,7 @@ function WalletContent() {
                   <p className={`font-medium ${
                     transaction.type === 'deposit' ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {transaction.type === 'deposit' ? '+' : '-'}${Math.abs(transaction.amount).toLocaleString()}
+                    {transaction.type === 'deposit' ? '+' : '-'}S${Math.abs(transaction.amount).toLocaleString()}
                   </p>
                   <p className={`text-sm ${
                     transaction.status === 'completed' ? 'text-green-600' :
@@ -393,11 +393,11 @@ function WalletContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <p className="text-sm text-black">Total Invested</p>
-              <p className="text-xl font-semibold text-black">${summary.totalInvested.toLocaleString()}</p>
+              <p className="text-xl font-semibold text-black">S${summary.totalInvested.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-sm text-black">Total Returns</p>
-              <p className="text-xl font-semibold text-green-500">${summary.totalReturns.toLocaleString()}</p>
+              <p className="text-xl font-semibold text-green-500">S${summary.totalReturns.toLocaleString()}</p>
             </div>
             <div>
               <p className="text-sm text-black">Active Projects</p>
