@@ -33,4 +33,17 @@ how should i implement payment for depositing and withdrawing money
 what do i need to do to implement
 i need you to implement the whole thing
 remoe webhook i do not have a domain
-now linke the withdrawal and deposit to wallet page
+now link the withdrawal and deposit to wallet page
+fix errors
+Create the endpoints as of now withdrawals just say pending
+should pending withdrawals show in stripe dashboard? it is currently not showing
+i need to do full stripe implementation
+i want payouts to be for withdrawing money from wallet
+i need to deploy website
+retry deploy to vercel
+as of now nothing happens when withdrawing from wallet
+withdraw is not working again
+when clicking on withdraw in wallet nothing happens
+add debugging in console
+implement user features and responsiveness
+dashboard data not reflecting real data

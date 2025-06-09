@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import connectDB from '@/lib/db';
+import { connectToDatabase } from '@/lib/mongodb';
+import User from '@/models/User';
 import Transaction from '@/models/Transaction';
 import Project from '@/models/Project';
-import Wallet from '@/models/Wallet';
+
+interface InvestmentMix {
+  [key: string]: number;
+}
 
 export async function GET() {
   try {
@@ -16,28 +20,19 @@ export async function GET() {
       );
     }
 
-    await connectDB();
+    const { db } = await connectToDatabase();
 
-    // Get or create wallet for the user
-    let wallet = await Wallet.findOne({ userId: session.user.id });
-    if (!wallet) {
-      // Calculate initial balance from existing transactions
-      const transactions = await Transaction.find({ userId: session.user.id });
-      const initialBalance = transactions.reduce((acc, transaction) => {
-        if (transaction.status === 'completed') {
-          return acc + transaction.amount;
-        }
-        return acc;
-      }, 0);
-
-      wallet = await Wallet.create({
-        userId: session.user.id,
-        balance: initialBalance,
-      });
+    // Get user
+    const user = await User.findOne({ email: session.user.email });
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
 
     // Get all transactions for the user
-    const transactions = await Transaction.find({ userId: session.user.id });
+    const transactions = await Transaction.find({ userId: user._id });
 
     // Calculate investment metrics
     const totalInvested = transactions
@@ -48,15 +43,58 @@ export async function GET() {
       .filter(t => t.type === 'dividend' && t.status === 'completed')
       .reduce((acc, transaction) => acc + transaction.amount, 0);
 
-    // Count active projects
-    const activeProjects = await Project.countDocuments({ status: 'active' });
+    // Get investment mix
+    const investments = await Transaction.find({
+      userId: user._id,
+      type: 'investment',
+      status: 'completed'
+    }).populate('projectId');
+
+    const investmentMix: InvestmentMix = investments.reduce((acc, investment) => {
+      const category = investment.projectId?.category || 'Other';
+      acc[category] = (acc[category] || 0) + Math.abs(investment.amount);
+      return acc;
+    }, {} as InvestmentMix);
+
+    // Calculate percentages
+    const totalInvestmentAmount = Object.values(investmentMix).reduce((a: number, b: number) => a + b, 0);
+    const investmentMixPercentages = Object.entries(investmentMix).map(([category, amount]) => ({
+      category,
+      percentage: Math.round((amount / totalInvestmentAmount) * 100)
+    }));
+
+    // Get recent timeline
+    const recentTransactions = await Transaction.find({
+      userId: user._id,
+      status: 'completed'
+    })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate('projectId');
+
+    const timeline = recentTransactions.map(transaction => ({
+      id: transaction._id.toString(),
+      date: transaction.createdAt.toISOString().split('T')[0],
+      event: `${transaction.type === 'investment' ? 'Investment in' : 
+              transaction.type === 'dividend' ? 'Dividend from' : 
+              transaction.type === 'withdrawal' ? 'Withdrawal from' : 
+              'Transaction in'} ${transaction.projectId?.name || 'Wallet'}`
+    }));
+
+    // Get active projects count
+    const activeProjects = await Project.countDocuments({
+      status: 'active',
+      investors: user._id
+    });
 
     return NextResponse.json({
-      balance: wallet.balance,
+      balance: user.balance,
       totalInvested,
       totalReturns,
       activeProjects,
-      lastUpdated: wallet.lastUpdated,
+      investmentMix: investmentMixPercentages,
+      timeline,
+      lastUpdated: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error fetching wallet summary:', error);
