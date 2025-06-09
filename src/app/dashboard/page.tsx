@@ -100,10 +100,10 @@ const DashboardPage = () => {
             <div className="mt-4 space-y-2">
               {walletSummary.investmentMix.length > 0 ? (
                 walletSummary.investmentMix.map((item) => (
-                  <div key={item.category} className="flex justify-between">
-                    <span className="text-black">{item.category}</span>
-                    <span className="font-medium text-black">{item.percentage}%</span>
-                  </div>
+                <div key={item.category} className="flex justify-between">
+                  <span className="text-black">{item.category}</span>
+                  <span className="font-medium text-black">{item.percentage}%</span>
+                </div>
                 ))
               ) : (
                 <p className="text-gray-500">No investments yet</p>
@@ -139,9 +139,9 @@ const DashboardPage = () => {
               {walletSummary.timeline.length > 0 ? (
                 walletSummary.timeline.map((item) => (
                   <div key={item.id} className="flex justify-between">
-                    <span className="text-black">{item.event}</span>
-                    <span className="text-black">{item.date}</span>
-                  </div>
+                  <span className="text-black">{item.event}</span>
+                  <span className="text-black">{item.date}</span>
+                </div>
                 ))
               ) : (
                 <p className="text-gray-500">No recent activity</p>

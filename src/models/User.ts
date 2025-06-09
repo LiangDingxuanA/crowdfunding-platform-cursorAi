@@ -109,6 +109,16 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  twoFactorCode: {
+    type: String,
+  },
+  twoFactorExpiry: {
+    type: Date,
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
   deposits: [transactionSchema],
   withdrawals: [transactionSchema],
 }, {
