@@ -6,6 +6,7 @@ import User from '@/models/User';
 import Wallet from '@/models/Wallet';
 import Transaction from '@/models/Transaction';
 import connectDB from '@/lib/db';
+import mongoose from 'mongoose';
 
 export async function POST(request: Request) {
   try {
@@ -29,102 +30,109 @@ export async function POST(request: Request) {
 
     await connectDB();
 
-    // Get user and transaction
-    const user = await User.findOne({ email: session.user.email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    const transaction = await Transaction.findById(transactionId);
-    if (!transaction) {
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify transaction belongs to user
-    if (transaction.userId.toString() !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const wallet = await Wallet.findOne({ userId: user.id });
-    if (!wallet) {
-      return NextResponse.json(
-        { error: 'Wallet not found' },
-        { status: 404 }
-      );
-    }
+    // Start a database transaction
+    const dbSession = await mongoose.startSession();
+    dbSession.startTransaction();
 
     try {
-      // Get the bank account details from Financial Connections
-      const account = await stripe.financialConnections.accounts.retrieve(accountId);
-      
-      // Create a payment method using the bank account
-      const paymentMethod = await stripe.paymentMethods.create({
-        type: 'us_bank_account',
-        us_bank_account: {
-          account_holder_type: 'individual',
-          financial_connections_account: accountId,
-        },
-      });
-
-      // Create a payment intent for the withdrawal
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.abs(transaction.amount) * 100, // Convert to cents
-        currency: 'usd',
-        payment_method: paymentMethod.id,
-        payment_method_types: ['us_bank_account'],
-        confirm: true,
-        customer: user.stripeCustomerId,
-        metadata: {
-          transactionId: transaction.id,
-          userEmail: user.email,
-          type: 'withdrawal'
-        }
-      });
-
-      // Update transaction with payment details
-      transaction.status = paymentIntent.status === 'succeeded' ? 'completed' : 'processing';
-      transaction.stripePaymentIntentId = paymentIntent.id;
-      await transaction.save();
-
-      // If payment is successful, update balances
-      if (paymentIntent.status === 'succeeded') {
-        user.balance += transaction.amount; // amount is already negative
-        wallet.balance += transaction.amount; // amount is already negative
-        await Promise.all([user.save(), wallet.save()]);
+      // Get user and transaction
+      const user = await User.findOne({ email: session.user.email }).session(dbSession);
+      if (!user) {
+        throw new Error('User not found');
       }
 
-      return NextResponse.json({
-        success: true,
-        status: paymentIntent.status,
-        paymentIntentId: paymentIntent.id
-      });
+      const transaction = await Transaction.findById(transactionId).session(dbSession);
+      if (!transaction) {
+        throw new Error('Transaction not found');
+      }
 
-    } catch (stripeError: any) {
-      console.error('Stripe error:', stripeError);
-      
-      // Update transaction status to failed
-      transaction.status = 'failed';
-      transaction.description += ` (Error: ${stripeError.message})`;
-      await transaction.save();
+      // Verify transaction belongs to user
+      if (transaction.userId.toString() !== user._id.toString()) {
+        throw new Error('Unauthorized');
+      }
 
-      return NextResponse.json(
-        { error: stripeError.message || 'Failed to process withdrawal' },
-        { status: 400 }
-      );
+      const wallet = await Wallet.findOne({ userId: user._id }).session(dbSession);
+      if (!wallet) {
+        throw new Error('Wallet not found');
+      }
+
+      try {
+        // Get the bank account details from Financial Connections
+        const account = await stripe.financialConnections.accounts.retrieve(accountId);
+        
+        // Create a payment method using the bank account
+        const paymentMethod = await stripe.paymentMethods.create({
+          type: 'us_bank_account',
+          us_bank_account: {
+            account_holder_type: 'individual',
+            financial_connections_account: accountId,
+          },
+        });
+
+        // Create a payment intent for the withdrawal
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.abs(transaction.amount) * 100, // Convert to cents
+          currency: 'usd',
+          payment_method: paymentMethod.id,
+          payment_method_types: ['us_bank_account'],
+          confirm: true,
+          customer: user.stripeCustomerId,
+          metadata: {
+            transactionId: transaction.id,
+            userEmail: user.email,
+            type: 'withdrawal'
+          }
+        });
+
+        // Update transaction with payment details
+        transaction.status = paymentIntent.status === 'succeeded' ? 'completed' : 'processing';
+        transaction.stripePaymentIntentId = paymentIntent.id;
+        await transaction.save({ session: dbSession });
+
+        // If payment is successful, update balances
+        if (paymentIntent.status === 'succeeded') {
+          // No need to update balances here as they were already updated when the withdrawal was initiated
+          // The transaction amount is already negative, so we don't need to subtract again
+        }
+
+        // Commit the transaction
+        await dbSession.commitTransaction();
+
+        return NextResponse.json({
+          success: true,
+          status: paymentIntent.status,
+          paymentIntentId: paymentIntent.id
+        });
+      } catch (stripeError) {
+        // If Stripe operation fails, update transaction status
+        transaction.status = 'failed';
+        await transaction.save({ session: dbSession });
+
+        // Revert the wallet balance
+        wallet.balance += Math.abs(transaction.amount);
+        await wallet.save({ session: dbSession });
+
+        // Revert the user balance
+        user.balance += Math.abs(transaction.amount);
+        await user.save({ session: dbSession });
+
+        // Commit the transaction
+        await dbSession.commitTransaction();
+
+        throw stripeError;
+      }
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await dbSession.abortTransaction();
+      throw error;
+    } finally {
+      // End the session
+      dbSession.endSession();
     }
   } catch (error) {
     console.error('Withdrawal completion error:', error);
     return NextResponse.json(
-      { error: 'Failed to complete withdrawal' },
+      { error: error instanceof Error ? error.message : 'Failed to complete withdrawal' },
       { status: 500 }
     );
   }
