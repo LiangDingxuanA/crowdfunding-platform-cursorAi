@@ -34,6 +34,24 @@ export async function GET() {
     // Get all transactions for the user
     const transactions = await Transaction.find({ userId: user._id });
 
+    // Calculate wallet balance from transactions
+    const balance = transactions.reduce((acc, transaction) => {
+      if (transaction.status === 'completed') {
+        switch (transaction.type) {
+          case 'deposit':
+            return acc + transaction.amount;
+          case 'withdrawal':
+          case 'investment':
+            return acc + transaction.amount; // amount is already negative for these types
+          case 'dividend':
+            return acc + transaction.amount;
+          default:
+            return acc;
+        }
+      }
+      return acc;
+    }, 0);
+
     // Calculate investment metrics
     const totalInvested = transactions
       .filter(t => t.type === 'investment' && t.status === 'completed')
@@ -88,7 +106,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      balance: user.balance,
+      balance,
       totalInvested,
       totalReturns,
       activeProjects,
