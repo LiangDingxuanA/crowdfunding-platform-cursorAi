@@ -14,7 +14,8 @@ interface UserDocument extends Document {
   _id: string;
   email: string;
   name: string;
-  password: string;
+  password?: string;
+  authProvider?: string;
   role?: string;
   phone?: string;
   address?: string;
@@ -39,13 +40,16 @@ export const authOptions: NextAuthOptions = {
 
         await connectDB();
 
-        const user = await User.findOne({ email: credentials.email }).select('+password') as UserDocument;
+        const user = await User.findOne({ 
+          email: credentials.email,
+          authProvider: 'credentials'
+        }).select('+password') as UserDocument;
 
         if (!user) {
           throw new Error('No user found with this email');
         }
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password!);
 
         if (!isPasswordValid) {
           throw new Error('Invalid password');
@@ -115,25 +119,37 @@ export const authOptions: NextAuthOptions = {
       return url;
     },
     async signIn({ user, account, profile }) {
-      // For OAuth providers
-      if (account?.provider === 'google' || account?.provider === 'github') {
-        try {
-          await connectDB();
+      try {
+        await connectDB();
+        
+        // For OAuth providers
+        if (account?.provider === 'google' || account?.provider === 'github') {
           // Check if user already exists
           const existingUser = await User.findOne({ email: user.email });
           
           if (existingUser) {
-            // If user exists, modify the callbackUrl in the account object
+            // Update auth provider if needed
+            if (existingUser.authProvider !== account.provider) {
+              existingUser.authProvider = account.provider;
+              await existingUser.save();
+            }
             account.callbackUrl = '/dashboard';
           } else {
-            // If new user, keep the original callbackUrl (onboarding)
+            // Create new user with OAuth provider
+            await User.create({
+              email: user.email,
+              name: user.name,
+              authProvider: account.provider,
+              isVerified: true, // OAuth users are pre-verified
+            });
             account.callbackUrl = '/onboarding/step-1';
           }
-        } catch (error) {
-          console.error('Error checking user existence:', error);
         }
+        return true;
+      } catch (error) {
+        console.error('Error in signIn callback:', error);
+        return false;
       }
-      return true;
     },
     async jwt({ token, user }) {
       if (user) {
@@ -144,6 +160,7 @@ export const authOptions: NextAuthOptions = {
         token.kycStatus = (user as any).kycStatus;
         token.memberSince = (user as any).memberSince;
         token.createdAt = (user as any).createdAt;
+        token.authProvider = (user as any).authProvider;
       }
       return token;
     },
@@ -156,9 +173,10 @@ export const authOptions: NextAuthOptions = {
         session.user.kycStatus = token.kycStatus;
         session.user.memberSince = token.memberSince;
         session.user.createdAt = token.createdAt;
+        session.user.authProvider = token.authProvider;
       }
       return session;
-    },
+    }
   },
   events: {
     async signOut() {

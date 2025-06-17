@@ -12,6 +12,9 @@ declare module 'next-auth' {
       address?: string;
       kycStatus?: 'pending' | 'approved' | 'rejected';
       memberSince?: Date;
+      role?: string;
+      authProvider?: string;
+      createdAt?: Date;
     } & DefaultSession['user'];
   }
 
@@ -20,6 +23,9 @@ declare module 'next-auth' {
     address?: string;
     kycStatus?: 'pending' | 'approved' | 'rejected';
     memberSince?: Date;
+    role?: string;
+    authProvider?: string;
+    createdAt?: Date;
   }
 }
 
@@ -30,6 +36,9 @@ declare module 'next-auth/jwt' {
     address?: string;
     kycStatus?: 'pending' | 'approved' | 'rejected';
     memberSince?: Date;
+    role?: string;
+    authProvider?: string;
+    createdAt?: Date;
   }
 }
 
@@ -41,5 +50,6 @@ declare module '@auth/mongodb-adapter' {
     kycStatus?: string;
     memberSince?: Date;
     createdAt?: Date;
+    authProvider?: string;
   }
 } 

@@ -30,7 +30,14 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: function() {
+      return !this.authProvider; // Password is only required if no auth provider is set
+    },
+  },
+  authProvider: {
+    type: String,
+    enum: ['credentials', 'google', 'github', 'email'],
+    default: 'credentials',
   },
   role: {
     type: String,
