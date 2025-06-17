@@ -15,10 +15,6 @@ export async function POST(request: Request) {
     const residentialStatus = formData.get('residentialStatus') as string
     const proofDocument = formData.get('proofDocument') as File
 
-    // Here you would typically:
-    // 1. Upload files to a secure storage service (e.g., AWS S3)
-    // 2. Call an address verification service API
-    // 3. Store the verification status and document references
 
     const client = await clientPromise
     const db = client.db()
