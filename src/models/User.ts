@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: function() {
+    required: function(this: { authProvider?: string }) {
       return !this.authProvider; // Password is only required if no auth provider is set
     },
   },
