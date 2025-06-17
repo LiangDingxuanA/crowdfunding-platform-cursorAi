@@ -9,4 +9,3 @@ Account number: 000123456789
 Routing number: 110000000
 
 The system will work locally without requiring a domain or webhook setup. 
-Would you like me to explain any part of the implementation in more detail?
