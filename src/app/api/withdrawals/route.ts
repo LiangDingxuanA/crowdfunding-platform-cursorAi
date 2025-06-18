@@ -24,6 +24,11 @@ interface IUser extends Document {
   deposits: ITransaction[];
 }
 
+interface IWallet extends Document {
+  userId: Document['_id'];
+  balance: number;
+}
+
 interface IUserModel extends Model<IUser> {
   startSession(): Promise<any>;
 }
@@ -54,49 +59,53 @@ export async function POST(req: Request) {
     // Start a session for the transaction
     const dbSession = await (User as IUserModel).startSession();
     let user: HydratedDocument<IUser> | null = null;
-    let wallet = null;
+    let wallet: HydratedDocument<IWallet> | null = null;
     let withdrawalRecord: ITransaction | null = null;
 
     try {
+      // Find user and lock the document
+      const foundUser = await User.findOne({ email: session.user.email }).session(dbSession);
+      if (!foundUser) {
+        throw new Error('User not found');
+      }
+      user = foundUser as HydratedDocument<IUser>;
+      
+      // Find or create wallet
+      const foundWallet = await Wallet.findOne({ userId: user._id }).session(dbSession);
+      if (!foundWallet) {
+        const [newWallet] = await Wallet.create([{
+          userId: user._id,
+          balance: user.balance || 0
+        }], { session: dbSession });
+        wallet = newWallet as HydratedDocument<IWallet>;
+      } else {
+        wallet = foundWallet as HydratedDocument<IWallet>;
+      }
+
+      if (!user.stripeConnectAccountId) {
+        throw new Error('Stripe Connect account not set up');
+      }
+
+      if (user.balance < withdrawalAmount) {
+        throw new Error('Insufficient balance');
+      }
+
       await dbSession.withTransaction(async () => {
-        // Find user and lock the document
-        user = await User.findOne({ email: session.user.email }).session(dbSession) as HydratedDocument<IUser>;
-        
-        if (!user) {
-          throw new Error('User not found');
-        }
-
-        // Find or create wallet
-        wallet = await Wallet.findOne({ userId: user._id }).session(dbSession);
-        if (!wallet) {
-          wallet = await Wallet.create([{
-            userId: user._id,
-            balance: user.balance || 0
-          }], { session: dbSession })[0];
-        }
-
-        if (!user.stripeConnectAccountId) {
-          throw new Error('Stripe Connect account not set up');
-        }
-
-        if (user.balance < withdrawalAmount) {
-          throw new Error('Insufficient balance');
-        }
-
         // Deduct amount from both user and wallet balances immediately
-        user.balance -= withdrawalAmount;
-        wallet.balance -= withdrawalAmount;
+        user!.balance -= withdrawalAmount;
+        wallet!.balance -= withdrawalAmount;
 
         // Create withdrawal record
-        withdrawalRecord = {
+        const newWithdrawalRecord: ITransaction = {
           amount: withdrawalAmount,
           status: 'pending',
           createdAt: new Date(),
         };
+        withdrawalRecord = newWithdrawalRecord;
 
         // Create transaction record
         await Transaction.create([{
-          userId: user._id,
+          userId: user!._id,
           type: 'withdrawal',
           amount: -withdrawalAmount,
           status: 'pending',
@@ -104,10 +113,10 @@ export async function POST(req: Request) {
           date: new Date(),
         }], { session: dbSession });
 
-        user.withdrawals.push(withdrawalRecord);
+        user!.withdrawals.push(withdrawalRecord);
         await Promise.all([
-          user.save({ session: dbSession }),
-          wallet.save({ session: dbSession })
+          user!.save({ session: dbSession }),
+          wallet!.save({ session: dbSession })
         ]);
       });
     } finally {
@@ -123,7 +132,7 @@ export async function POST(req: Request) {
       const transfer = await stripe.transfers.create({
         amount: Math.round(withdrawalAmount * 100), // Convert to cents
         currency: 'usd',
-        destination: user.stripeConnectAccountId,
+        destination: user.stripeConnectAccountId!,
         transfer_group: `withdrawal_${Date.now()}`,
       });
 
