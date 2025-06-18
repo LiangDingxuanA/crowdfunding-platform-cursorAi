@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { connectToDatabase } from '@/lib/mongodb';
 import User from '@/models/User';
+import Wallet from '@/models/Wallet';
+import Transaction from '@/models/Transaction';
 import Stripe from 'stripe';
 import { Document, Model, HydratedDocument } from 'mongoose';
 
@@ -52,6 +54,7 @@ export async function POST(req: Request) {
     // Start a session for the transaction
     const dbSession = await (User as IUserModel).startSession();
     let user: HydratedDocument<IUser> | null = null;
+    let wallet = null;
     let withdrawalRecord: ITransaction | null = null;
 
     try {
@@ -63,6 +66,15 @@ export async function POST(req: Request) {
           throw new Error('User not found');
         }
 
+        // Find or create wallet
+        wallet = await Wallet.findOne({ userId: user._id }).session(dbSession);
+        if (!wallet) {
+          wallet = await Wallet.create([{
+            userId: user._id,
+            balance: user.balance || 0
+          }], { session: dbSession })[0];
+        }
+
         if (!user.stripeConnectAccountId) {
           throw new Error('Stripe Connect account not set up');
         }
@@ -71,8 +83,9 @@ export async function POST(req: Request) {
           throw new Error('Insufficient balance');
         }
 
-        // Deduct amount from user's balance immediately
+        // Deduct amount from both user and wallet balances immediately
         user.balance -= withdrawalAmount;
+        wallet.balance -= withdrawalAmount;
 
         // Create withdrawal record
         withdrawalRecord = {
@@ -81,14 +94,27 @@ export async function POST(req: Request) {
           createdAt: new Date(),
         };
 
+        // Create transaction record
+        await Transaction.create([{
+          userId: user._id,
+          type: 'withdrawal',
+          amount: -withdrawalAmount,
+          status: 'pending',
+          description: 'Withdrawal request',
+          date: new Date(),
+        }], { session: dbSession });
+
         user.withdrawals.push(withdrawalRecord);
-        await user.save({ session: dbSession });
+        await Promise.all([
+          user.save({ session: dbSession }),
+          wallet.save({ session: dbSession })
+        ]);
       });
     } finally {
       await dbSession.endSession();
     }
 
-    if (!user || !withdrawalRecord) {
+    if (!user || !wallet || !withdrawalRecord) {
       throw new Error('Transaction failed to complete properly');
     }
 
@@ -116,20 +142,52 @@ export async function POST(req: Request) {
         }
       );
 
+      // Update transaction status
+      await Transaction.updateOne(
+        {
+          userId: user._id,
+          type: 'withdrawal',
+          status: 'pending',
+          amount: -withdrawalAmount
+        },
+        {
+          $set: {
+            status: 'completed',
+            transferId: transfer.id
+          }
+        }
+      );
+
       return NextResponse.json({ 
         success: true, 
         message: 'Withdrawal initiated successfully',
-        transferId: transfer.id
+        transferId: transfer.id,
+        newBalance: wallet.balance
       });
     } catch (stripeError) {
       // If Stripe transfer fails, revert the balance deduction
-      await User.updateOne(
-        { email: session.user.email },
-        { 
-          $inc: { balance: withdrawalAmount },
-          $set: { 'withdrawals.$.status': 'failed' }
-        }
-      );
+      await Promise.all([
+        User.updateOne(
+          { email: session.user.email },
+          { 
+            $inc: { balance: withdrawalAmount },
+            $set: { 'withdrawals.$.status': 'failed' }
+          }
+        ),
+        Wallet.updateOne(
+          { userId: user._id },
+          { $inc: { balance: withdrawalAmount } }
+        ),
+        Transaction.updateOne(
+          {
+            userId: user._id,
+            type: 'withdrawal',
+            status: 'pending',
+            amount: -withdrawalAmount
+          },
+          { $set: { status: 'failed' } }
+        )
+      ]);
 
       throw stripeError;
     }

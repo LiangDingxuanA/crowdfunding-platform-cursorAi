@@ -34,8 +34,9 @@ export async function GET() {
     // Get all transactions for the user
     const transactions = await Transaction.find({ userId: user._id });
 
-    // Calculate wallet balance from transactions
+    // Calculate wallet balance from transactions, including pending withdrawals
     const balance = transactions.reduce((acc, transaction) => {
+      // For completed transactions, add/subtract the amount
       if (transaction.status === 'completed') {
         switch (transaction.type) {
           case 'deposit':
@@ -48,6 +49,10 @@ export async function GET() {
           default:
             return acc;
         }
+      }
+      // For pending withdrawals, subtract the amount immediately
+      else if (transaction.status === 'pending' && transaction.type === 'withdrawal') {
+        return acc + transaction.amount; // amount is already negative
       }
       return acc;
     }, 0);

@@ -64,6 +64,7 @@ function WalletContent() {
         const [transactionsRes, summaryRes] = await Promise.all([
           fetch('/api/wallet/transactions'),
           fetch('/api/wallet/summary'),
+          
         ]);
 
         if (!transactionsRes.ok || !summaryRes.ok) {
@@ -184,44 +185,38 @@ function WalletContent() {
         return;
       }
 
-      console.log('Refreshing wallet data...');
+      // Update the balance immediately with the new balance from the response
+      if (data.newBalance !== undefined) {
+        setSummary(prev => ({
+          ...prev,
+          balance: data.newBalance
+        }));
+      }
+
       // Refresh wallet data after successful withdrawal
       const [transactionsRes, summaryRes] = await Promise.all([
         fetch('/api/wallet/transactions'),
         fetch('/api/wallet/summary'),
       ]);
 
-      console.log('Wallet data response status:', {
-        transactions: transactionsRes.status,
-        summary: summaryRes.status
-      });
+      if (transactionsRes.ok && summaryRes.ok) {
+        const [transactionsData, summaryData] = await Promise.all([
+          transactionsRes.json(),
+          summaryRes.json(),
+        ]);
 
-      const [transactionsData, summaryData] = await Promise.all([
-        transactionsRes.json(),
-        summaryRes.json(),
-      ]);
+        setTransactions(transactionsData);
+        setSummary(summaryData);
+      }
 
-      console.log('Updated wallet data:', {
-        transactions: transactionsData,
-        summary: summaryData
-      });
-
-      setTransactions(transactionsData);
-      setSummary(summaryData);
       setAmount('');
-      setShowBankDetails(false);
-      
-      // Show success message
-      setError(null);
       setWithdrawalStatus('success');
-      console.log('Withdrawal completed successfully');
     } catch (err) {
       console.error('Withdrawal error:', err);
       setError(err instanceof Error ? err.message : 'Failed to process withdrawal');
       setWithdrawalStatus('error');
     } finally {
       setIsProcessing(false);
-      console.log('Withdrawal process finished');
     }
   };
 
