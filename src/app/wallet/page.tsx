@@ -236,6 +236,14 @@ function WalletContent() {
 
   return (
     <AdminLayout>
+      <div className="flex justify-end mb-4">
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+          onClick={() => router.push('/dashboard#analytics')}
+        >
+          View Portfolio Analytics
+        </button>
+      </div>
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-black">Wallet</h1>
 
