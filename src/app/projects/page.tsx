@@ -17,6 +17,7 @@ interface Project {
   duration: string;
   description: string;
   status: string;
+  createdBy: string;
 }
 
 interface WalletSummary {
@@ -46,6 +47,10 @@ const ProjectsPage = () => {
     description: '',
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [showDividendModal, setShowDividendModal] = useState<string | null>(null);
+  const [dividendInput, setDividendInput] = useState('');
+  const [dividendStatus, setDividendStatus] = useState<string | null>(null);
+  const [dividendLoading, setDividendLoading] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -195,6 +200,47 @@ const ProjectsPage = () => {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // Demo: Simulate investors for automation
+  const getDemoInvestors = (project: Project) => {
+    // In real app, fetch from backend
+    return [
+      { userId: 'user1', name: 'Alice' },
+      { userId: 'user2', name: 'Bob' },
+      { userId: 'user3', name: 'Charlie' },
+    ];
+  };
+
+  const handlePayDividends = async (projectId: string) => {
+    setDividendLoading(true);
+    setDividendStatus(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/dividend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: dividendInput,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to pay dividends');
+      setDividendStatus('Dividends paid successfully!');
+      setDividendInput('');
+    } catch (err: any) {
+      setDividendStatus(err.message || 'Failed to pay dividends');
+    } finally {
+      setDividendLoading(false);
+    }
+  };
+
+  const handlePayAll = (project: Project) => {
+    // Demo: distribute 5% of currentAmount equally to demo investors
+    const investors = getDemoInvestors(project);
+    const totalDividend = project.currentAmount * 0.05;
+    const perInvestor = totalDividend / investors.length;
+    const dividends: Record<string, number> = {};
+    investors.forEach(inv => { dividends[inv.userId] = Number(perInvestor.toFixed(2)); });
+    setDividendInput(JSON.stringify({ dividends }, null, 2));
+    setShowDividendModal(project._id);
   };
 
   if (loading) {
@@ -418,6 +464,59 @@ const ProjectsPage = () => {
                     {processingInvestment[project._id] ? 'Processing...' : 'Invest Now'}
                 </button>
               </div>
+              )}
+
+              {session?.user?.id === project.createdBy && (
+                <div className="mt-4 flex space-x-2">
+                  <button
+                    className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
+                    onClick={() => setShowDividendModal(project._id)}
+                  >
+                    Pay Dividends
+                  </button>
+                  <button
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                    onClick={() => handlePayAll(project)}
+                  >
+                    Pay All (Auto)
+                  </button>
+                </div>
+              )}
+
+              {/* Dividend Modal */}
+              {showDividendModal === project._id && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+                  <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                    <h3 className="text-lg font-bold mb-2">Pay Dividends for {project.name}</h3>
+                    <p className="text-sm text-gray-600 mb-2">Enter JSON: {'{"dividends": {"userId1": amount1, ...}}'}</p>
+                    <textarea
+                      className="w-full p-2 border rounded mb-2 text-black"
+                      rows={5}
+                      value={dividendInput}
+                      onChange={e => setDividendInput(e.target.value)}
+                      placeholder='{"dividends": {"user1": 100, "user2": 50}}'
+                    />
+                    {dividendStatus && (
+                      <div className="mb-2 text-center text-sm text-green-600">{dividendStatus}</div>
+                    )}
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                        onClick={() => { setShowDividendModal(null); setDividendStatus(null); }}
+                        disabled={dividendLoading}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
+                        onClick={() => handlePayDividends(project._id)}
+                        disabled={dividendLoading}
+                      >
+                        {dividendLoading ? 'Paying...' : 'Submit'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           ))}
