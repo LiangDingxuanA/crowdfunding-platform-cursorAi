@@ -2,6 +2,8 @@
 
 A modern crowdfunding platform built with Next.js, MongoDB, and Stripe.
 
+https://crowdfunding-platform-cursor.vercel.app/
+
 ## Features
 
 - User authentication with NextAuth.js
