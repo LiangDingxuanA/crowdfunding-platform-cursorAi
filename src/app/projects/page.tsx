@@ -18,6 +18,7 @@ interface Project {
   description: string;
   status: string;
   createdBy: string;
+  image?: string;
 }
 
 interface WalletSummary {
@@ -388,7 +389,28 @@ const ProjectsPage = () => {
 
         <div className="grid grid-cols-1 gap-6">
           {projects.map((project) => (
-            <div key={project._id} className="bg-white p-6 rounded-lg shadow">
+            <div
+              key={project._id}
+              className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow duration-200"
+              onClick={() => router.push(`/projects/${project._id}`)}
+            >
+              {/* Project Image Placeholder */}
+              <div className="mb-4 w-full h-40 bg-gray-100 flex items-center justify-center rounded">
+                {project.image ? (
+                  <img
+                    src={project.image}
+                    alt={project.name}
+                    className="object-cover w-full h-full rounded"
+                    onError={e => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80'; }}
+                  />
+                ) : (
+                  <img
+                    src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80"
+                    alt="Project placeholder"
+                    className="object-cover w-full h-full rounded"
+                  />
+                )}
+              </div>
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-semibold text-black">{project.name}</h2>
@@ -516,7 +538,7 @@ const ProjectsPage = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+              </div>
               )}
             </div>
           ))}
