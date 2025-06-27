@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Transaction from '@/models/Transaction';
 import Wallet from '@/models/Wallet';
+import { sendMailgunEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -64,6 +65,14 @@ export async function POST(request: Request) {
     // Update wallet balance
     wallet.balance += transaction.amount;
     await wallet.save();
+
+    // Send Mailgun email notification
+    const userEmail = session.user.email;
+    const html = `<p>Your wallet balance has been updated.</p>
+      <p><strong>Type:</strong> ${transaction.type}<br/>
+      <strong>Amount:</strong> $${Math.abs(transaction.amount).toLocaleString()}<br/>
+      <strong>New Balance:</strong> $${wallet.balance.toLocaleString()}</p>`;
+    await sendMailgunEmail(userEmail, 'Wallet Balance Updated', html);
 
     return NextResponse.json({
       transaction,

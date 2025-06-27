@@ -5,6 +5,7 @@ import User from '@/models/User';
 import Wallet from '@/models/Wallet';
 import Transaction from '@/models/Transaction';
 import connectDB from '@/lib/db';
+import { sendMailgunEmail } from '@/lib/email';
 
 export async function GET(request: Request) {
   try {
@@ -64,6 +65,13 @@ export async function GET(request: Request) {
       user.save(),
       wallet.save(),
     ]);
+
+    // Send Mailgun email notification
+    const html = `<p>Your wallet balance has been updated.</p>
+      <p><strong>Type:</strong> deposit<br/>
+      <strong>Amount:</strong> $${amount.toLocaleString()}<br/>
+      <strong>New Balance:</strong> $${wallet.balance.toLocaleString()}</p>`;
+    await sendMailgunEmail(user.email, 'Wallet Balance Updated', html);
 
     // Redirect to the wallet page with success parameter
     return NextResponse.redirect(new URL('/wallet?success=true', request.url));

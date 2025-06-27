@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import fetch from 'node-fetch';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -31,4 +32,30 @@ export async function sendVerificationEmail(email: string, code: string) {
     console.error('Failed to send verification email:', error);
     throw error;
   }
+}
+
+// Mailgun email sender
+export async function sendMailgunEmail(to: string, subject: string, html: string) {
+  const apiKey = process.env.MAILGUN_API_KEY;
+  const domain = process.env.MAILGUN_DOMAIN;
+  if (!apiKey || !domain) throw new Error('Mailgun API key or domain not set');
+  const url = `https://api.mailgun.net/v3/${domain}/messages`;
+  const form = new URLSearchParams();
+  form.append('from', `Crowdfunding Platform <noreply@${domain}>`);
+  form.append('to', to);
+  form.append('subject', subject);
+  form.append('html', html);
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`api:${apiKey}`).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: form.toString(),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Mailgun error: ${text}`);
+  }
+  return await res.json();
 } 
