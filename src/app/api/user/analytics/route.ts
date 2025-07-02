@@ -89,12 +89,19 @@ export async function GET() {
     // Current balance
     const balance = user.balance;
 
+    // Determine rank
+    let rank = 'Bronze';
+    if (totalInvested >= 100000) rank = 'Platinum';
+    else if (totalInvested >= 50000) rank = 'Gold';
+    else if (totalInvested >= 10000) rank = 'Silver';
+
     return NextResponse.json({
       monthlyStats,
       investmentDistribution,
       totalInvested,
       totalReturns,
       balance,
+      rank,
     });
   } catch (error) {
     console.error('User analytics error:', error);

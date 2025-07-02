@@ -131,21 +131,35 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-center">
-              <WalletIcon className="h-8 w-8 text-green-500" />
-              <h2 className="ml-2 text-lg font-semibold text-black">Wallet Balance</h2>
-            </div>
-            <div className="mt-4">
-              <p className="text-3xl font-bold text-black">S${walletSummary.balance.toLocaleString()}</p>
-              <p className="text-sm text-black">Available for investment</p>
-              <div className="mt-2 space-y-1">
-                <p className="text-sm text-gray-500">
-                  Total Invested: S${walletSummary.totalInvested.toLocaleString()}
-                </p>
-                <p className="text-sm text-green-500">
-                  Total Returns: S${walletSummary.totalReturns.toLocaleString()}
-                </p>
+          <div className="bg-white p-6 rounded-lg shadow flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <WalletIcon className="h-8 w-8 text-green-500" />
+                  <h2 className="ml-2 text-lg font-semibold text-black">Wallet Balance</h2>
+                </div>
+                {analytics && (
+                  <span className={`px-3 py-1 rounded-full text-sm font-bold 
+                    ${analytics.rank === 'Platinum' ? 'bg-yellow-300 text-yellow-900' :
+                      analytics.rank === 'Gold' ? 'bg-yellow-500 text-white' :
+                      analytics.rank === 'Silver' ? 'bg-gray-300 text-gray-800' :
+                      'bg-orange-200 text-orange-800'}`}
+                  >
+                    {analytics.rank} Investor
+                  </span>
+                )}
+              </div>
+              <div className="mt-4">
+                <p className="text-3xl font-bold text-black">S${walletSummary.balance.toLocaleString()}</p>
+                <p className="text-sm text-black">Available for investment</p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-gray-500">
+                    Total Invested: S${walletSummary.totalInvested.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-green-500">
+                    Total Returns: S${walletSummary.totalReturns.toLocaleString()}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
