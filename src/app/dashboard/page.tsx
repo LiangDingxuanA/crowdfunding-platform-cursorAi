@@ -139,11 +139,12 @@ const DashboardPage = () => {
                   <h2 className="ml-2 text-lg font-semibold text-black">Wallet Balance</h2>
                 </div>
                 {analytics && (
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold 
+                  <span className={`px-3 py-1 rounded-full text-sm font-bold flex justify-center items-center
                     ${analytics.rank === 'Platinum' ? 'bg-yellow-300 text-yellow-900' :
                       analytics.rank === 'Gold' ? 'bg-yellow-500 text-white' :
                       analytics.rank === 'Silver' ? 'bg-gray-300 text-gray-800' :
                       'bg-orange-200 text-orange-800'}`}
+                    style={{ width: '100%' }}
                   >
                     {analytics.rank} Investor
                   </span>
