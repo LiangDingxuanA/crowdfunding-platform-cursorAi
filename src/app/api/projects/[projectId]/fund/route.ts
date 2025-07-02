@@ -6,6 +6,7 @@ import User from '@/models/User';
 import Project from '@/models/Project';
 import ProjectPayment from '@/models/ProjectPayment';
 import connectDB from '@/lib/db';
+import Transaction from '@/models/Transaction';
 
 export async function POST(
   request: Request,
@@ -67,8 +68,19 @@ export async function POST(
       await investor.save();
     }
 
+    // Calculate total invested for rank
+    const totalInvestedAgg = await Transaction.aggregate([
+      { $match: { userId: investor._id, type: 'investment', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: { $abs: '$amount' } } } },
+    ]);
+    const totalInvested = totalInvestedAgg[0]?.total || 0;
+    // Determine rank and platform fee percent
+    let platformFeePercent = 0.05; // Bronze default
+    if (totalInvested >= 100000) platformFeePercent = 0.03; // Platinum
+    else if (totalInvested >= 50000) platformFeePercent = 0.04; // Gold
+    else if (totalInvested >= 10000) platformFeePercent = 0.045; // Silver
+
     // Calculate fees
-    const platformFeePercent = 0.05; // 5% platform fee
     const stripeFeePercent = 0.029; // 2.9% Stripe fee
     const stripeFixedFee = 0.30; // $0.30 Stripe fixed fee
 
