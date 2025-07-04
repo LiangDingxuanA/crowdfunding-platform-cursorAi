@@ -101,7 +101,7 @@ const DashboardPage = () => {
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 px-2 md:px-0">
         <h1 className="text-2xl font-bold text-black">Dashboard</h1>
         
         {error && (
@@ -204,7 +204,7 @@ const DashboardPage = () => {
           ) : analytics ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Line Chart: Monthly Investments & Returns */}
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow overflow-x-auto">
                 <h3 className="text-lg font-semibold text-black mb-2">Monthly Investments & Returns</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={analytics.monthlyStats} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -218,7 +218,7 @@ const DashboardPage = () => {
                 </ResponsiveContainer>
               </div>
               {/* Pie Chart: Investment Distribution */}
-              <div className="bg-white p-6 rounded-lg shadow">
+              <div className="bg-white p-6 rounded-lg shadow overflow-x-auto">
                 <h3 className="text-lg font-semibold text-black mb-2">Investment Distribution by Type</h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
