@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { useSession } from 'next-auth/react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface Project {
   _id: string;
@@ -63,6 +64,16 @@ const ProjectDetailPage = () => {
       </AdminLayout>
     );
   }
+
+  // Mock funding progress data
+  const fundingData = [
+    { month: 'Jan', amount: Math.round(project?.targetAmount * 0.1) },
+    { month: 'Feb', amount: Math.round(project?.targetAmount * 0.2) },
+    { month: 'Mar', amount: Math.round(project?.targetAmount * 0.4) },
+    { month: 'Apr', amount: Math.round(project?.targetAmount * 0.6) },
+    { month: 'May', amount: Math.round(project?.targetAmount * 0.8) },
+    { month: 'Jun', amount: project?.currentAmount || 0 },
+  ];
 
   return (
     <AdminLayout>
@@ -125,6 +136,19 @@ const ProjectDetailPage = () => {
           <div className="mb-4">
             <h2 className="text-lg font-semibold mb-1 text-black">Description</h2>
             <p className="text-gray-700 whitespace-pre-line">{project.description}</p>
+          </div>
+          {/* Project Analytics Section */}
+          <div className="mb-4 bg-white rounded-lg shadow p-4 overflow-x-auto">
+            <h2 className="text-lg font-semibold mb-2 text-black">Funding Progress</h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={fundingData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <XAxis dataKey="month" stroke="#000" />
+                <YAxis stroke="#000" />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="amount" name="Amount Raised" stroke="#2563eb" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
           {/* Optionally, add investment form and payout buttons here if user is owner */}
         </div>

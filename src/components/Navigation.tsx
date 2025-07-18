@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 
 const Navigation = () => {
   const pathname = usePathname();
@@ -17,6 +18,28 @@ const Navigation = () => {
     { name: 'Wallet', href: '/wallet' },
     { name: 'Profile', href: '/profile' },
   ];
+
+  const locales = [
+    { code: 'en', label: 'English' },
+    { code: 'fr', label: 'Français' },
+    { code: 'es', label: 'Español' },
+  ];
+
+  const router = useRouter();
+  const [selectedLocale, setSelectedLocale] = useState('en');
+
+  // Handle language change
+  const handleLocaleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newLocale = e.target.value;
+    setSelectedLocale(newLocale);
+    const segments = pathname.split('/');
+    if (locales.some(l => l.code === segments[1])) {
+      segments[1] = newLocale;
+    } else {
+      segments.splice(1, 0, newLocale);
+    }
+    router.push(segments.join('/') || '/');
+  };
 
   const isActive = (path: string) => pathname === path;
 
@@ -48,6 +71,15 @@ const Navigation = () => {
           </div>
 
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
+            <select
+              value={selectedLocale}
+              onChange={handleLocaleChange}
+              className="mr-4 px-2 py-1 rounded border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {locales.map((locale) => (
+                <option key={locale.code} value={locale.code}>{locale.label}</option>
+              ))}
+            </select>
             {session ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-500">
@@ -97,6 +129,17 @@ const Navigation = () => {
       {/* Mobile menu */}
       <div className={`${isOpen ? 'block' : 'hidden'} sm:hidden`}>
         <div className="pt-2 pb-3 space-y-1">
+          <div className="px-4 pb-2">
+            <select
+              value={selectedLocale}
+              onChange={handleLocaleChange}
+              className="w-full px-2 py-1 rounded border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {locales.map((locale) => (
+                <option key={locale.code} value={locale.code}>{locale.label}</option>
+              ))}
+            </select>
+          </div>
           {navigation.map((item) => (
             <Link
               key={item.name}

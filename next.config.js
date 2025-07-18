@@ -10,6 +10,10 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true, // Temporarily ignore ESLint errors during build
   },
+  i18n: {
+    locales: ['en', 'fr', 'es'],
+    defaultLocale: 'en',
+  },
 };
 
 module.exports = nextConfig; 
