@@ -388,13 +388,29 @@ const ProjectsPage = () => {
         )}
 
         <div className="grid grid-cols-1 gap-6">
-          {projects.map((project) => (
+        {projects.map((project) => (
+          <div
+            key={project._id}
+            className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition-shadow duration-200"
+          >
+            {/* Clickable area (excluding form controls) */}
             <div
-              key={project._id}
-              className="bg-white p-6 rounded-lg shadow cursor-pointer hover:shadow-lg transition-shadow duration-200"
-              onClick={() => router.push(`/projects/${project._id}`)}
+              className="cursor-pointer"
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (
+                  target.tagName !== 'INPUT' &&
+                  target.tagName !== 'BUTTON' &&
+                  target.tagName !== 'TEXTAREA' &&
+                  !target.closest('input') &&
+                  !target.closest('button') &&
+                  !target.closest('textarea')
+                ) {
+                  router.push(`/projects/${project._id}`);
+                }
+              }}
             >
-              {/* Project Image Placeholder */}
+              {/* Project Image */}
               <div className="mb-4 w-full h-40 bg-gray-100 flex items-center justify-center rounded">
                 {project.image ? (
                   <img
@@ -411,6 +427,8 @@ const ProjectsPage = () => {
                   />
                 )}
               </div>
+
+              {/* Title + Status */}
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-xl font-semibold text-black">{project.name}</h2>
@@ -425,6 +443,7 @@ const ProjectsPage = () => {
                 </span>
               </div>
 
+              {/* Stats */}
               <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center">
                   <CurrencyDollarIcon className="h-6 w-6 text-green-500 mr-2" />
@@ -451,6 +470,7 @@ const ProjectsPage = () => {
                 </div>
               </div>
 
+              {/* Progress Bar */}
               <div className="mt-4">
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -465,83 +485,87 @@ const ProjectsPage = () => {
                   <span>${project.currentAmount.toLocaleString()} raised</span>
                 </div>
               </div>
+            </div>
 
-              {project.status === 'active' && (
-                <div className="mt-4 flex items-center space-x-4">
-                  <input
-                    type="number"
-                    value={investmentAmount[project._id] || ''}
-                    onChange={(e) => handleInvestmentAmountChange(project._id, e.target.value)}
-                    placeholder="Enter investment amount"
-                    className="flex-1 p-2 border rounded-lg text-black"
-                    min="0"
-                    step="0.01"
-                    disabled={processingInvestment[project._id]}
-                  />
-                  <button
-                    className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
-                    onClick={() => handleInvest(project._id)}
-                    disabled={processingInvestment[project._id] || !investmentAmount[project._id]}
-                  >
-                    {processingInvestment[project._id] ? 'Processing...' : 'Invest Now'}
+            {/* Investment section (excluded from click handler) */}
+            {project.status === 'active' && (
+              <div className="mt-4 flex items-center space-x-4">
+                <input
+                  type="number"
+                  value={investmentAmount[project._id] || ''}
+                  onChange={(e) => handleInvestmentAmountChange(project._id, e.target.value)}
+                  placeholder="Enter investment amount"
+                  className="flex-1 p-2 border rounded-lg text-black"
+                  min="0"
+                  step="0.01"
+                  disabled={processingInvestment[project._id]}
+                />
+                <button
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                  onClick={() => handleInvest(project._id)}
+                  disabled={processingInvestment[project._id] || !investmentAmount[project._id]}
+                >
+                  {processingInvestment[project._id] ? 'Processing...' : 'Invest Now'}
                 </button>
               </div>
-              )}
+            )}
 
-              {session?.user?.id === project.createdBy && (
-                <div className="mt-4 flex space-x-2">
-                  <button
-                    className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
-                    onClick={() => setShowDividendModal(project._id)}
-                  >
-                    Pay Dividends
-                  </button>
-                  <button
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                    onClick={() => handlePayAll(project)}
-                  >
-                    Pay All (Auto)
-                  </button>
-                </div>
-              )}
-
-              {/* Dividend Modal */}
-              {showDividendModal === project._id && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-                  <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-                    <h3 className="text-lg font-bold mb-2">Pay Dividends for {project.name}</h3>
-                    <p className="text-sm text-gray-600 mb-2">Enter JSON: {'{"dividends": {"userId1": amount1, ...}}'}</p>
-                    <textarea
-                      className="w-full p-2 border rounded mb-2 text-black"
-                      rows={5}
-                      value={dividendInput}
-                      onChange={e => setDividendInput(e.target.value)}
-                      placeholder='{"dividends": {"user1": 100, "user2": 50}}'
-                    />
-                    {dividendStatus && (
-                      <div className="mb-2 text-center text-sm text-green-600">{dividendStatus}</div>
-                    )}
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                        onClick={() => { setShowDividendModal(null); setDividendStatus(null); }}
-                        disabled={dividendLoading}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
-                        onClick={() => handlePayDividends(project._id)}
-                        disabled={dividendLoading}
-                      >
-                        {dividendLoading ? 'Paying...' : 'Submit'}
-                      </button>
-                    </div>
-                  </div>
+            {/* Creator-only buttons */}
+            {session?.user?.id === project.createdBy && (
+              <div className="mt-4 flex space-x-2">
+                <button
+                  className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
+                  onClick={() => setShowDividendModal(project._id)}
+                >
+                  Pay Dividends
+                </button>
+                <button
+                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                  onClick={() => handlePayAll(project)}
+                >
+                  Pay All (Auto)
+                </button>
               </div>
-              )}
-            </div>
-          ))}
+            )}
+
+            {/* Dividend Modal remains the same */}
+            {showDividendModal === project._id && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+                <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+                  <h3 className="text-lg font-bold mb-2">Pay Dividends for {project.name}</h3>
+                  <p className="text-sm text-gray-600 mb-2">Enter JSON: {'{"dividends": {"userId1": amount1, ...}}'}</p>
+                  <textarea
+                    className="w-full p-2 border rounded mb-2 text-black"
+                    rows={5}
+                    value={dividendInput}
+                    onChange={e => setDividendInput(e.target.value)}
+                    placeholder='{"dividends": {"user1": 100, "user2": 50}}'
+                  />
+                  {dividendStatus && (
+                    <div className="mb-2 text-center text-sm text-green-600">{dividendStatus}</div>
+                  )}
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                      onClick={() => { setShowDividendModal(null); setDividendStatus(null); }}
+                      disabled={dividendLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 disabled:opacity-50"
+                      onClick={() => handlePayDividends(project._id)}
+                      disabled={dividendLoading}
+                    >
+                      {dividendLoading ? 'Paying...' : 'Submit'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
         </div>
       </div>
     </AdminLayout>
